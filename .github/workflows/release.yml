@@ -71,6 +71,7 @@ jobs:
             VENDOR=${{ github.repository_owner }}
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             REVISION=${{ github.sha }}
+            TARGETPLATFORM=${{ matrix.platform }}
           cache-from: |
             ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:k8s_gateway-{1},mode=max', github.repository_owner, matrix.platform) }}
           cache-to: |
@@ -81,9 +82,7 @@ jobs:
             org.opencontainers.image.version=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.vendor=${{ github.repository_owner }}
-          outputs: |
-            type=docker
-            ${{ github.event_name == 'release' && format('type=image,name=ghcr.io/{0}/k8s_gateway,push-by-digest=true,name-canonical=true,push=true', github.repository_owner) || '' }}
+          outputs: ${{ github.event_name == 'release' && format('type=image,name=ghcr.io/{0}/k8s_gateway,push-by-digest=true,name-canonical=true,push=true', github.repository_owner) || 'type=docker' }}
           context: .
           platforms: linux/${{ matrix.platform }}
           provenance: false
@@ -108,7 +107,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
@@ -129,6 +128,6 @@ jobs:
         with:
           tags: ${{ join(fromJSON(steps.meta.outputs.json).tags, ',') }}
           inputs: >-
-            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.build.outputs.arm64 }},
-            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.build.outputs.amd64 }}
+            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.docker-release.outputs.arm64 }},
+            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.docker-release.outputs.amd64 }}
           push: false

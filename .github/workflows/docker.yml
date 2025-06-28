@@ -56,6 +56,7 @@ jobs:
             VENDOR=${{ github.repository_owner }}
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             REVISION=${{ github.sha }}
+            TARGETPLATFORM=${{ matrix.platform }}
           cache-from: |
             ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:k8s_gateway-{1},mode=max', github.repository_owner, matrix.platform) }}
           cache-to: |
@@ -66,54 +67,12 @@ jobs:
             org.opencontainers.image.version=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.vendor=${{ github.repository_owner }}
-          outputs: |
-            type=docker
-            ${{ github.event_name == 'release' && format('type=image,name=ghcr.io/{0}/k8s_gateway,push-by-digest=true,name-canonical=true,push=true', github.repository_owner) || '' }}
+          outputs: ${{ github.event_name == 'release' && format('type=image,name=ghcr.io/{0}/k8s_gateway,push-by-digest=true,name-canonical=true,push=true', github.repository_owner) || 'type=docker' }}
           context: .
           platforms: linux/${{ matrix.platform }}
           provenance: false
 
       - name: Export Digest
-        # if: ${{ github.event_name == 'release' }}
         id: digest
         run: |
           echo "${{ matrix.platform }}=${{ steps.build.outputs.digest }}" >> "${GITHUB_OUTPUT}"
-
-  release:
-    if: ${{ github.event_name == 'release' }}
-    needs: build
-    name: Release
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Build Meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
-        id: meta
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
-        with:
-          images: ghcr.io/k8s-gateway/k8s_gateway
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Push Images
-        id: push
-        uses: Noelware/docker-manifest-action@v1
-        with:
-          tags: ${{ join(fromJSON(steps.meta.outputs.json).tags, ',') }}
-          inputs: >-
-            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.build.outputs.arm64 }},
-            ghcr.io/${{ github.repository_owner }}/k8s_gateway@${{ needs.build.outputs.amd64 }}
-          push: false
