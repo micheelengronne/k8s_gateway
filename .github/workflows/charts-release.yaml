@@ -16,7 +16,7 @@ on:
     branches:
       - master
     paths:
-      - "charts/*"
+      - "charts/**"
 
 env:
   HELM_VERSION: 3.17.2
