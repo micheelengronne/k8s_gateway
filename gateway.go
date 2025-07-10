@@ -13,7 +13,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-type lookupFunc func(indexKeys []string) []netip.Addr
+type lookupFunc func(indexKeys []string) (results []netip.Addr, txts []string)
 
 type resourceWithIndex struct {
 	name   string
@@ -30,7 +30,7 @@ var staticResources = []*resourceWithIndex{
 	{name: "DNSEndpoint", lookup: noop},
 }
 
-var noop lookupFunc = func([]string) (result []netip.Addr) { return }
+var noop lookupFunc = func([]string) (result []netip.Addr, txts []string) { return }
 
 var (
 	ttlDefault        = uint32(60)
@@ -155,11 +155,12 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	}
 
-	addrs := gw.getMatchingAddresses(indexKeySets)
+	addrs, txts := gw.getMatchingAddresses(indexKeySets)
 	log.Debugf("computed response addresses %v", addrs)
+	log.Debugf("computed response txts %v", txts)
 
 	// Fall through if no host matches
-	if len(addrs) == 0 && gw.Fall.Through(qname) {
+	if len(addrs) == 0 && len(txts) == 0 && gw.Fall.Through(qname) {
 		return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
 	}
 
@@ -213,6 +214,22 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		} else {
 
 			m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
+		}
+
+	case dns.TypeTXT:
+
+		if len(txts) == 0 {
+
+			if !isRootZoneQuery {
+				// No match, return NXDOMAIN
+				m.Rcode = dns.RcodeNameError
+			}
+
+			m.Ns = []dns.RR{gw.soa(state)}
+
+		} else {
+
+			m.Answer = gw.TXT(state.Name(), txts)
 		}
 
 	case dns.TypeSOA:
@@ -298,19 +315,19 @@ func (gw *Gateway) toWildcardQName(qName, zone string) string {
 
 // Gets the set of addresses associated with the first set of index keys
 // that is in the indexer.
-func (gw *Gateway) getMatchingAddresses(indexKeySets [][]string) []netip.Addr {
+func (gw *Gateway) getMatchingAddresses(indexKeySets [][]string) ([]netip.Addr, []string) {
 	// Iterate over supported resources and lookup DNS queries
 	// Stop once we've found at least one match
 	for _, indexKeys := range indexKeySets {
 		for _, resource := range gw.Resources {
-			addrs := resource.lookup(indexKeys)
-			if len(addrs) > 0 {
-				return addrs
+			addrs, txts := resource.lookup(indexKeys)
+			if len(addrs) > 0 || len(txts) > 0 {
+				return addrs, txts
 			}
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // Name implements the Handler interface.
@@ -339,16 +356,29 @@ func (gw *Gateway) AAAA(name string, results []netip.Addr) (records []dns.RR) {
 	return records
 }
 
+func (gw *Gateway) TXT(name string, results []string) (records []dns.RR) {
+	dup := make(map[string]struct{})
+	for _, result := range results {
+		if _, ok := dup[result]; !ok {
+			dup[result] = struct{}{}
+			records = append(records, &dns.TXT{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: gw.ttlLow}, Txt: split255(result)})
+		}
+	}
+
+	return records
+}
+
 // SelfAddress returns the address of the local k8s_gateway service
 func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 
 	var addrs1, addrs2 []netip.Addr
 	for _, resource := range gw.Resources {
-		results := resource.lookup([]string{gw.apex})
+		results, txts := resource.lookup([]string{gw.apex})
+		_ = txts
 		if len(results) > 0 {
 			addrs1 = append(addrs1, results...)
 		}
-		results = resource.lookup([]string{gw.secondNS})
+		results, txts = resource.lookup([]string{gw.secondNS})
 		if len(results) > 0 {
 			addrs2 = append(addrs2, results...)
 		}
@@ -376,4 +406,24 @@ func stripClosingDot(s string) string {
 		return strings.TrimSuffix(s, ".")
 	}
 	return s
+}
+
+// src: https://github.com/coredns/coredns/blob/0aee758833cabb1ec89756a698c52b83bbbdc587/plugin/etcd/msg/service.go#L145
+// Split255 splits a string into 255 byte chunks.
+func split255(s string) []string {
+	if len(s) < 255 {
+		return []string{s}
+	}
+	sx := []string{}
+	p, i := 0, 255
+	for {
+		if i > len(s) {
+			sx = append(sx, s[p:])
+			break
+		}
+		sx = append(sx, s[p:i])
+		p, i = p+255, i+255
+	}
+
+	return sx
 }

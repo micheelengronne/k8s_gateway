@@ -240,6 +240,13 @@ var tests = []test.Case{
 			test.A("specific-subdomain.wildcard.example.com. 60  IN  A   192.0.0.7"),
 		},
 	},
+	// Existing Endpoint | TXT record
+	{
+		Qname: "endpoint.example.com.", Qtype: dns.TypeTXT, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.TXT("endpoint.example.com. 60  IN  TXT   dolorsitamet"),
+		},
+	},
 }
 
 var testsFallthrough = []FallthroughCase{
@@ -277,11 +284,11 @@ var testServiceIndexes = map[string][]netip.Addr{
 	"dns1.kube-system": {netip.MustParseAddr("192.0.1.53")},
 }
 
-func testServiceLookup(keys []string) (results []netip.Addr) {
+func testServiceLookup(keys []string) (results []netip.Addr, txts []string) {
 	for _, key := range keys {
 		results = append(results, testServiceIndexes[strings.ToLower(key)]...)
 	}
-	return results
+	return results, txts
 }
 
 var testIngressIndexes = map[string][]netip.Addr{
@@ -294,11 +301,11 @@ var testIngressIndexes = map[string][]netip.Addr{
 	"specific-subdomain.wildcard.example.com": {netip.MustParseAddr("192.0.0.7")},
 }
 
-func testIngressLookup(keys []string) (results []netip.Addr) {
+func testIngressLookup(keys []string) (results []netip.Addr, txts []string) {
 	for _, key := range keys {
 		results = append(results, testIngressIndexes[strings.ToLower(key)]...)
 	}
-	return results
+	return results, txts
 }
 
 var testRouteIndexes = map[string][]netip.Addr{
@@ -306,11 +313,11 @@ var testRouteIndexes = map[string][]netip.Addr{
 	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
 }
 
-func testRouteLookup(keys []string) (results []netip.Addr) {
+func testRouteLookup(keys []string) (results []netip.Addr, txts []string) {
 	for _, key := range keys {
 		results = append(results, testRouteIndexes[strings.ToLower(key)]...)
 	}
-	return results
+	return results, txts
 }
 
 var testDNSEndpointIndexes = map[string][]netip.Addr{
@@ -318,11 +325,19 @@ var testDNSEndpointIndexes = map[string][]netip.Addr{
 	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
 }
 
-func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
+var testDNSEndpointTxtIndexes = map[string][]string{
+	"domain.endpoint.example.com": {"loremipsum"},
+	"endpoint.example.com":        {"dolorsitamet"},
+}
+
+func testDNSEndpointLookup(keys []string) (results []netip.Addr, txts []string) {
 	for _, key := range keys {
 		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
 	}
-	return results
+	for _, key := range keys {
+		txts = append(txts, testDNSEndpointTxtIndexes[strings.ToLower(key)]...)
+	}
+	return results, txts
 }
 
 func setupLookupFuncs(gw *Gateway) {
