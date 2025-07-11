@@ -379,6 +379,7 @@ func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 			addrs1 = append(addrs1, results...)
 		}
 		results, txts = resource.lookup([]string{gw.secondNS})
+                _ = txts
 		if len(results) > 0 {
 			addrs2 = append(addrs2, results...)
 		}
