@@ -215,7 +215,6 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 			m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
 		}
-
 	case dns.TypeTXT:
 
 		if len(txts) == 0 {
@@ -226,12 +225,9 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			}
 
 			m.Ns = []dns.RR{gw.soa(state)}
-
 		} else {
-
 			m.Answer = gw.TXT(state.Name(), txts)
 		}
-
 	case dns.TypeSOA:
 
 		m.Answer = []dns.RR{gw.soa(state)}
