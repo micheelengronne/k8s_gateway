@@ -245,6 +245,7 @@ var tests = []test.Case{
 		Qname: "endpoint.example.com.", Qtype: dns.TypeTXT, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
 			test.TXT("endpoint.example.com. 60  IN  TXT   dolorsitamet"),
+			test.TXT("endpoint.example.com. 60  IN  TXT   consectetur"),
 		},
 	},
 	// Non-existing Endpoint | TXT record
@@ -334,7 +335,7 @@ var testDNSEndpointIndexes = map[string][]netip.Addr{
 
 var testDNSEndpointTxtIndexes = map[string][]string{
 	"domain.endpoint.example.com": {"loremipsum"},
-	"endpoint.example.com":        {"dolorsitamet"},
+	"endpoint.example.com":        {"dolorsitamet", "consectetur"},
 }
 
 func testDNSEndpointLookup(keys []string) (results []netip.Addr, raws []string) {
