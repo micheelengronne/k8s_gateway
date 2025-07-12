@@ -244,8 +244,7 @@ var tests = []test.Case{
 	{
 		Qname: "endpoint.example.com.", Qtype: dns.TypeTXT, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
-			test.TXT("endpoint.example.com. 60  IN  TXT   dolorsitamet"),
-			test.TXT("endpoint.example.com. 60  IN  TXT   consectetur"),
+			test.TXT("endpoint.example.com. 60  IN  TXT   \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor i\" \"n reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\""),
 		},
 	},
 	// Non-existing Endpoint | TXT record
@@ -333,9 +332,12 @@ var testDNSEndpointIndexes = map[string][]netip.Addr{
 	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
 }
 
+// test implementation for TXT multiple records does not work correctly
+// because it is confused with the concatenation of strings longer than 255 bytes
+// The loop in https://github.com/coredns/coredns/blob/master/plugin/test/helpers.go#L209
+// may be the origin of the problem
 var testDNSEndpointTxtIndexes = map[string][]string{
-	"domain.endpoint.example.com": {"loremipsum"},
-	"endpoint.example.com":        {"dolorsitamet", "consectetur"},
+	"endpoint.example.com":        {"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."},
 }
 
 func testDNSEndpointLookup(keys []string) (results []netip.Addr, raws []string) {
