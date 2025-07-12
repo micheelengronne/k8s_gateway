@@ -247,6 +247,13 @@ var tests = []test.Case{
 			test.TXT("endpoint.example.com. 60  IN  TXT   dolorsitamet"),
 		},
 	},
+	// Non-existing Endpoint | TXT record
+	{
+		Qname: "endpointX.ns1.example.com.", Qtype: dns.TypeTXT, Rcode: dns.RcodeNameError,
+		Ns: []dns.RR{
+			test.SOA("example.com.  60  IN  SOA dns1.kube-system.example.com. hostmaster.example.com. 1499347823 7200 1800 86400 5"),
+		},
+	},
 }
 
 var testsFallthrough = []FallthroughCase{
