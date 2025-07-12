@@ -13,7 +13,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-type lookupFunc func(indexKeys []string) (results []netip.Addr, txts []string)
+type lookupFunc func(indexKeys []string) (results []netip.Addr, raws []string)
 
 type resourceWithIndex struct {
 	name   string
@@ -30,7 +30,7 @@ var staticResources = []*resourceWithIndex{
 	{name: "DNSEndpoint", lookup: noop},
 }
 
-var noop lookupFunc = func([]string) (result []netip.Addr, txts []string) { return }
+var noop lookupFunc = func([]string) (result []netip.Addr, raws []string) { return }
 
 var (
 	ttlDefault        = uint32(60)
@@ -155,12 +155,12 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	}
 
-	addrs, txts := gw.getMatchingAddresses(indexKeySets)
+	addrs, raws := gw.getMatchingAddresses(indexKeySets)
 	log.Debugf("computed response addresses %v", addrs)
-	log.Debugf("computed response txts %v", txts)
+	log.Debugf("computed response raws %v", raws)
 
 	// Fall through if no host matches
-	if len(addrs) == 0 && len(txts) == 0 && gw.Fall.Through(qname) {
+	if len(addrs) == 0 && len(raws) == 0 && gw.Fall.Through(qname) {
 		return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
 	}
 
@@ -217,7 +217,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	case dns.TypeTXT:
 
-		if len(txts) == 0 {
+		if len(raws) == 0 {
 
 			if !isRootZoneQuery {
 				// No match, return NXDOMAIN
@@ -226,7 +226,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 			m.Ns = []dns.RR{gw.soa(state)}
 		} else {
-			m.Answer = gw.TXT(state.Name(), txts)
+			m.Answer = gw.TXT(state.Name(), raws)
 		}
 	case dns.TypeSOA:
 
@@ -316,9 +316,9 @@ func (gw *Gateway) getMatchingAddresses(indexKeySets [][]string) ([]netip.Addr, 
 	// Stop once we've found at least one match
 	for _, indexKeys := range indexKeySets {
 		for _, resource := range gw.Resources {
-			addrs, txts := resource.lookup(indexKeys)
-			if len(addrs) > 0 || len(txts) > 0 {
-				return addrs, txts
+			addrs, raws := resource.lookup(indexKeys)
+			if len(addrs) > 0 || len(raws) > 0 {
+				return addrs, raws
 			}
 		}
 	}
@@ -369,13 +369,13 @@ func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 
 	var addrs1, addrs2 []netip.Addr
 	for _, resource := range gw.Resources {
-		results, txts := resource.lookup([]string{gw.apex})
-		_ = txts
+		results, raws := resource.lookup([]string{gw.apex})
+		_ = raws
 		if len(results) > 0 {
 			addrs1 = append(addrs1, results...)
 		}
-		results, txts = resource.lookup([]string{gw.secondNS})
-                _ = txts
+		results, raws = resource.lookup([]string{gw.secondNS})
+        _ = raws
 		if len(results) > 0 {
 			addrs2 = append(addrs2, results...)
 		}

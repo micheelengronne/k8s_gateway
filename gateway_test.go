@@ -284,11 +284,11 @@ var testServiceIndexes = map[string][]netip.Addr{
 	"dns1.kube-system": {netip.MustParseAddr("192.0.1.53")},
 }
 
-func testServiceLookup(keys []string) (results []netip.Addr, txts []string) {
+func testServiceLookup(keys []string) (results []netip.Addr, raws []string) {
 	for _, key := range keys {
 		results = append(results, testServiceIndexes[strings.ToLower(key)]...)
 	}
-	return results, txts
+	return results, raws
 }
 
 var testIngressIndexes = map[string][]netip.Addr{
@@ -301,11 +301,11 @@ var testIngressIndexes = map[string][]netip.Addr{
 	"specific-subdomain.wildcard.example.com": {netip.MustParseAddr("192.0.0.7")},
 }
 
-func testIngressLookup(keys []string) (results []netip.Addr, txts []string) {
+func testIngressLookup(keys []string) (results []netip.Addr, raws []string) {
 	for _, key := range keys {
 		results = append(results, testIngressIndexes[strings.ToLower(key)]...)
 	}
-	return results, txts
+	return results, raws
 }
 
 var testRouteIndexes = map[string][]netip.Addr{
@@ -313,11 +313,11 @@ var testRouteIndexes = map[string][]netip.Addr{
 	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
 }
 
-func testRouteLookup(keys []string) (results []netip.Addr, txts []string) {
+func testRouteLookup(keys []string) (results []netip.Addr, raws []string) {
 	for _, key := range keys {
 		results = append(results, testRouteIndexes[strings.ToLower(key)]...)
 	}
-	return results, txts
+	return results, raws
 }
 
 var testDNSEndpointIndexes = map[string][]netip.Addr{
@@ -330,14 +330,14 @@ var testDNSEndpointTxtIndexes = map[string][]string{
 	"endpoint.example.com":        {"dolorsitamet"},
 }
 
-func testDNSEndpointLookup(keys []string) (results []netip.Addr, txts []string) {
+func testDNSEndpointLookup(keys []string) (results []netip.Addr, raws []string) {
 	for _, key := range keys {
 		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
 	}
 	for _, key := range keys {
-		txts = append(txts, testDNSEndpointTxtIndexes[strings.ToLower(key)]...)
+		raws = append(raws, testDNSEndpointTxtIndexes[strings.ToLower(key)]...)
 	}
-	return results, txts
+	return results, raws
 }
 
 func setupLookupFuncs(gw *Gateway) {
